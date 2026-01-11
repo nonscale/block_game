@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>노인을 위한 벽돌 깨기</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            color: #fff;
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            /* 텍스트 선택 방지 */
+        }
+
+        #gameContainer {
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        canvas {
+            background-color: #000;
+            border: 4px solid #F0F0F0;
+            display: block;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px 20px;
+            box-sizing: border-box;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .hud-text {
+            font-size: 32px;
+            font-weight: bold;
+            color: #FFF;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        .control-btn {
+            pointer-events: auto;
+            background-color: #555;
+            color: white;
+            border: 2px solid #fff;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-size: 24px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .control-btn:hover {
+            background-color: #777;
+        }
+
+        #startScreen,
+        #gameOverScreen,
+        #pauseScreen,
+        #helpScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 60px;
+            margin-bottom: 20px;
+            color: #FFD700;
+            text-align: center;
+        }
+
+        p {
+            font-size: 30px;
+            margin-bottom: 40px;
+            line-height: 1.6;
+            text-align: center;
+            word-break: keep-all;
+            padding: 0 20px;
+        }
+
+        .big-btn {
+            font-size: 40px;
+            padding: 20px 60px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            box-shadow: 0 5px #2E7D32;
+            margin-top: 20px;
+        }
+
+        .big-btn:hover {
+            background-color: #45a049;
+        }
+
+        .big-btn:active {
+            box-shadow: 0 2px #2E7D32;
+            transform: translateY(3px);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+        <!-- UI 레이어 (점수, 버튼) -->
+        <div id="ui-layer">
+            <div class="top-bar">
+                <div class="hud-text">점수: <span id="score">0</span></div>
+                <div>
+                    <button class="control-btn" id="btn-sound" onclick="toggleSound()">소리: 꺼짐</button>
+                    <button class="control-btn" id="btn-pause" onclick="togglePause()">일시정지</button>
+                    <button class="control-btn" id="btn-help" onclick="toggleHelp()">도움말</button>
+                </div>
+            </div>
+            <div class="hud-text">단계: <span id="level">1</span></div>
+        </div>
+
+        <!-- 시작 화면 -->
+        <div id="startScreen">
+            <h1>벽돌 깨기</h1>
+            <p>마우스를 움직이거나 화살표 키(← →)를<br>눌러서 공을 받아치세요.</p>
+            <button class="big-btn" onclick="startGame()">게임 시작</button>
+        </div>
+
+        <!-- 일시정지 화면 -->
+        <div id="pauseScreen" class="hidden">
+            <h1>일시 정지</h1>
+            <p>잠시 쉬는 중입니다.</p>
+            <button class="big-btn" onclick="togglePause()">다시 계속하기</button>
+        </div>
+
+        <!-- 도움말 화면 -->
+        <div id="helpScreen" class="hidden">
+            <h1>게임 방법</h1>
+            <p>
+                1. 아래쪽 막대를 움직여 공을 튕겨내세요.<br>
+                2. 공으로 위의 벽돌을 모두 깨면 성공입니다.<br>
+                3. 공을 바닥에 떨어뜨리면 게임이 끝납니다.
+            </p>
+            <button class="big-btn" onclick="toggleHelp()">닫기</button>
+        </div>
+
+        <!-- 종료 화면 -->
+        <div id="gameOverScreen" class="hidden">
+            <h1 id="gameOverTitle">게임 종료</h1>
+            <p id="gameOverMessage">점수: 0</p>
+            <button class="big-btn" onclick="resetGame()">다시 하기</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 오디오 컨텍스트
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        let soundEnabled = false; // 기본 소리 꺼짐
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function toggleSound() {
+            initAudio(); // 활성화 시도
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('btn-sound');
+            if (soundEnabled) {
+                btn.innerText = "소리: 켜짐";
+                btn.style.backgroundColor = "#4CAF50"; // 켜지면 녹색
+                btn.style.borderColor = "#FFF";
+            } else {
+                btn.innerText = "소리: 꺼짐";
+                btn.style.backgroundColor = "#555";
+                btn.style.borderColor = "#FFF";
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled || !audioCtx) return;
+
+            try {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                if (type === 'hit') { // 벽 충돌
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'paddle') { // 패들 충돌
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(200, audioCtx.currentTime);
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'brick') { // 벽돌 깨짐
+                    oscillator.type = 'triangle';
+                    oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.15);
+                } else if (type === 'win') { // 승리 (단순 효과)
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime); // Do
+                    oscillator.frequency.linearRampToValueAtTime(659.25, audioCtx.currentTime + 0.2); // Mi
+                    oscillator.frequency.linearRampToValueAtTime(783.99, audioCtx.currentTime + 0.4); // Sol
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.8);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.8);
+                }
+            } catch (e) {
+                console.log("Audio error: " + e);
+            }
+        }
+
+        // 게임 상태 변수
+        let gameRunning = false;
+        let isPaused = false;
+        let score = 0;
+        let level = 1;
+
+        // 패들
+        const paddle = {
+            width: 150,
+            height: 25,
+            x: canvas.width / 2 - 75,
+            y: canvas.height - 40,
+            color: '#00BFFF',
+            speed: 7,
+            dx: 0
+        };
+
+        // 공
+        const ball = {
+            x: canvas.width / 2,
+            y: canvas.height - 50,
+            radius: 12,
+            speed: 3,
+            dx: 3,
+            dy: -3,
+            color: '#FFD700'
+        };
+
+        // 블록
+        const brickRowCount = 3;
+        const brickColumnCount = 6;
+        const brickPadding = 15;
+        const brickOffsetTop = 80;
+        const brickOffsetLeft = 35;
+        const brickWidth = (canvas.width - (brickOffsetLeft * 2) - (brickPadding * (brickColumnCount - 1))) / brickColumnCount;
+        const brickHeight = 40;
+
+        let bricks = [];
+
+        // 키보드
+        let rightPressed = false;
+        let leftPressed = false;
+
+        // 이벤트 리스너
+        document.addEventListener("keydown", keyDownHandler, false);
+        document.addEventListener("keyup", keyUpHandler, false);
+        document.addEventListener("mousemove", mouseMoveHandler, false);
+
+        function initBricks() {
+            bricks = [];
+            for (let c = 0; c < brickColumnCount; c++) {
+                bricks[c] = [];
+                for (let r = 0; r < brickRowCount; r++) {
+                    bricks[c][r] = { x: 0, y: 0, status: 1 };
+                }
+            }
+        }
+
+        function keyDownHandler(e) {
+            if (e.key == "Right" || e.key == "ArrowRight") {
+                rightPressed = true;
+            }
+            else if (e.key == "Left" || e.key == "ArrowLeft") {
+                leftPressed = true;
+            }
+            else if (e.key == "Escape") {
+                togglePause();
+            }
+        }
+
+        function keyUpHandler(e) {
+            if (e.key == "Right" || e.key == "ArrowRight") {
+                rightPressed = false;
+            }
+            else if (e.key == "Left" || e.key == "ArrowLeft") {
+                leftPressed = false;
+            }
+        }
+
+        function mouseMoveHandler(e) {
+            if (!gameRunning || isPaused) return;
+            const relativeX = e.clientX - canvas.getBoundingClientRect().left;
+            if (relativeX > 0 && relativeX < canvas.width) {
+                paddle.x = relativeX - paddle.width / 2;
+            }
+        }
+
+        function togglePause() {
+            if (!gameRunning) return;
+            isPaused = !isPaused;
+            const pauseScreen = document.getElementById('pauseScreen');
+            if (isPaused) {
+                pauseScreen.classList.remove('hidden');
+            } else {
+                pauseScreen.classList.add('hidden');
+                draw();
+            }
+        }
+
+        function toggleHelp() {
+            const helpScreen = document.getElementById('helpScreen');
+            if (helpScreen.classList.contains('hidden')) {
+                if (gameRunning && !isPaused) {
+                    togglePause();
+                }
+                helpScreen.classList.remove('hidden');
+            } else {
+                helpScreen.classList.add('hidden');
+            }
+        }
+
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = ball.color;
+            ctx.fill();
+            ctx.strokeStyle = "#FFFFFF";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.closePath();
+        }
+
+        function drawPaddle() {
+            ctx.beginPath();
+            ctx.rect(paddle.x, paddle.y, paddle.width, paddle.height);
+            ctx.fillStyle = paddle.color;
+            ctx.fill();
+            ctx.strokeStyle = "#FFFFFF";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.closePath();
+        }
+
+        function drawBricks() {
+            const colors = ["#FF5252", "#448AFF", "#69F0AE"];
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    if (bricks[c][r].status == 1) {
+                        const brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft;
+                        const brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop;
+                        bricks[c][r].x = brickX;
+                        bricks[c][r].y = brickY;
+
+                        ctx.beginPath();
+                        ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                        ctx.fillStyle = colors[r % 3];
+                        ctx.fill();
+                        ctx.strokeStyle = "#FFF";
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                        ctx.closePath();
+                    }
+                }
+            }
+        }
+
+        function collisionDetection() {
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    const b = bricks[c][r];
+                    if (b.status == 1) {
+                        if (ball.x > b.x && ball.x < b.x + brickWidth && ball.y > b.y && ball.y < b.y + brickHeight) {
+                            ball.dy = -ball.dy;
+                            b.status = 0;
+                            score += 10;
+                            document.getElementById('score').innerText = score;
+                            playSound('brick');
+
+                            let allBroken = true;
+                            bricks.forEach(col => col.forEach(brick => {
+                                if (brick.status === 1) allBroken = false;
+                            }));
+
+                            if (allBroken) {
+                                playSound('win');
+                                alert("참 잘하셨습니다! 다음 단계로 넘어갑니다.");
+                                level++;
+                                document.getElementById('level').innerText = level;
+                                initBricks();
+                                ball.x = canvas.width / 2;
+                                ball.y = canvas.height - 50;
+                                ball.dy = -Math.abs(ball.speed) - (level * 0.5);
+                                ball.dx = ball.speed + (level * 0.5);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            if (!gameRunning || isPaused) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawBricks();
+            drawBall();
+            drawPaddle();
+            collisionDetection();
+
+            if (ball.x + ball.dx > canvas.width - ball.radius || ball.x + ball.dx < ball.radius) {
+                ball.dx = -ball.dx;
+                playSound('hit');
+            }
+
+            if (ball.y + ball.dy < ball.radius) {
+                ball.dy = -ball.dy;
+                playSound('hit');
+            }
+            else if (ball.y + ball.dy > canvas.height - ball.radius - paddle.height) {
+                if (ball.x > paddle.x && ball.x < paddle.x + paddle.width) {
+                    ball.dy = -ball.dy;
+                    playSound('paddle');
+                }
+                else if (ball.y + ball.dy > canvas.height - ball.radius) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            if (rightPressed && paddle.x < canvas.width - paddle.width) {
+                paddle.x += paddle.speed;
+            }
+            else if (leftPressed && paddle.x > 0) {
+                paddle.x -= paddle.speed;
+            }
+
+            requestAnimationFrame(draw);
+        }
+
+        function startGame() {
+            // initAudio(); // 여기서 켜지 않고 버튼으로만 제어하도록 변경 (사용자 요청: 기본 꺼짐)
+            // 사용자가 명시적으로 소리를 켰을 때만 initAudio() 호출됨 (toggleSound)
+
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('pauseScreen').classList.add('hidden');
+            document.getElementById('helpScreen').classList.add('hidden');
+
+            gameRunning = true;
+            isPaused = false;
+            score = 0;
+            level = 1;
+            document.getElementById('score').innerText = score;
+            document.getElementById('level').innerText = level;
+
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height - 50;
+            ball.dx = ball.speed;
+            ball.dy = -ball.speed;
+            paddle.x = (canvas.width - paddle.width) / 2;
+
+            initBricks();
+            draw();
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+            document.getElementById('gameOverTitle').innerText = "게임 종료";
+            document.getElementById('gameOverMessage').innerText = "최종 점수: " + score;
+        }
+
+        function resetGame() {
+            startGame();
+        }
+
+        initBricks();
+
+    </script>
+</body>
+
+</html>
