@@ -16,10 +16,62 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             overflow: hidden;
             user-select: none;
-            /* 텍스트 선택 방지 */
+        }
+
+        body.playing {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="transparent"/></svg>'), none !important;
+        }
+
+        body.playing * {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="transparent"/></svg>'), none !important;
+        }
+
+        #gameWrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        #ui-layer {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        .hud-text {
+            font-size: 32px;
+            font-weight: bold;
+            color: #FFF;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        .hud-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .control-btn {
+            background-color: #555;
+            color: white;
+            border: 2px solid #fff;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-size: 24px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .control-btn:hover {
+            background-color: #777;
         }
 
         #gameContainer {
@@ -33,56 +85,12 @@
             display: block;
         }
 
-        #ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 10px 20px;
-            box-sizing: border-box;
-        }
-
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-        }
-
-        .hud-text {
-            font-size: 32px;
-            font-weight: bold;
-            color: #FFF;
-            text-shadow: 2px 2px 0px #000;
-        }
-
-        .control-btn {
-            pointer-events: auto;
-            background-color: #555;
-            color: white;
-            border: 2px solid #fff;
-            border-radius: 10px;
-            padding: 10px 20px;
-            font-size: 24px;
-            cursor: pointer;
-            font-weight: bold;
-            margin-left: 10px;
-        }
-
-        .control-btn:hover {
-            background-color: #777;
-        }
-
         #startScreen,
         #gameOverScreen,
         #pauseScreen,
-        #helpScreen {
-            position: absolute;
+        #helpScreen,
+        #victoryScreen {
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
@@ -92,8 +100,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            pointer-events: auto;
-            z-index: 10;
+            z-index: 100;
         }
 
         h1 {
@@ -136,58 +143,124 @@
         .hidden {
             display: none !important;
         }
+
+        .level-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            align-items: center;
+        }
+
+        .level-btn {
+            font-size: 32px;
+            padding: 15px 30px;
+            background-color: #555;
+            color: white;
+            border: 3px solid #fff;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .level-btn.selected {
+            background-color: #4CAF50;
+            border-color: #FFD700;
+        }
+
+        .level-btn:hover {
+            background-color: #777;
+        }
+
+        #btn-fullscreen {
+            background-color: #FF6B6B;
+            border-color: #FFD700;
+            background-color: #777;
+        }
     </style>
 </head>
 
 <body>
 
-    <div id="gameContainer">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-
-        <!-- UI 레이어 (점수, 버튼) -->
+    <div id="gameWrapper">
+        <!-- UI 레이어 (캔버스 밖으로 이동) -->
         <div id="ui-layer">
-            <div class="top-bar">
+            <div class="hud-group">
                 <div class="hud-text">점수: <span id="score">0</span></div>
-                <div>
-                    <button class="control-btn" id="btn-sound" onclick="toggleSound()">소리: 꺼짐</button>
-                    <button class="control-btn" id="btn-pause" onclick="togglePause()">일시정지</button>
-                    <button class="control-btn" id="btn-help" onclick="toggleHelp()">도움말</button>
-                </div>
+                <div class="hud-text">단계: <span id="level">1</span></div>
+                <div class="hud-text">생명: <span id="lives">2</span></div>
             </div>
-            <div class="hud-text">단계: <span id="level">1</span></div>
+            <div class="hud-group">
+                <button class="control-btn" id="btn-sound" onclick="toggleSound()">소리: 꺼짐</button>
+                <button class="control-btn" id="btn-pause" onclick="togglePause()">일시정지</button>
+                <button class="control-btn" id="btn-help" onclick="toggleHelp()">도움말</button>
+                <button class="control-btn" id="btn-fullscreen" onclick="toggleFullscreen()">전체화면</button>
+                <button class="control-btn" id="btn-quit" onclick="quitGame()"
+                    style="background-color: #FF6B6B;">게임종료</button>
+            </div>
         </div>
 
-        <!-- 시작 화면 -->
-        <div id="startScreen">
-            <h1>벽돌 깨기</h1>
-            <p>마우스를 움직이거나 화살표 키(← →)를<br>눌러서 공을 받아치세요.</p>
-            <button class="big-btn" onclick="startGame()">게임 시작</button>
+        <div id="gameContainer">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+        </div>
+    </div>
+
+    <!-- 시작 화면 -->
+    <div id="startScreen">
+        <h1>벽돌 깨기</h1>
+        <p>마우스를 움직이거나 화살표 키(← →)를<br>눌러서 공을 받아치세요.</p>
+
+        <div class="level-selector">
+            <span style="font-size: 30px; font-weight: bold;">시작 레벨:</span>
+            <button class="level-btn selected" id="btn-level-1" onclick="selectStartLevel(1)">1단계</button>
+            <button class="level-btn" id="btn-level-saved" onclick="selectStartLevel('saved')"
+                style="display: none;">저장된 단계</button>
         </div>
 
-        <!-- 일시정지 화면 -->
-        <div id="pauseScreen" class="hidden">
-            <h1>일시 정지</h1>
-            <p>잠시 쉬는 중입니다.</p>
-            <button class="big-btn" onclick="togglePause()">다시 계속하기</button>
+        <div style="margin-bottom: 30px; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 30px; font-weight: bold;">속도 설정:</span>
+            <button class="control-btn" id="btn-speed-slow" onclick="setSpeed('slow')"
+                style="background-color: #4CAF50; border: 3px solid #FFD700;">천천히</button>
+            <button class="control-btn" id="btn-speed-normal" onclick="setSpeed('normal')"
+                style="background-color: #555;">보통</button>
         </div>
 
-        <!-- 도움말 화면 -->
-        <div id="helpScreen" class="hidden">
-            <h1>게임 방법</h1>
-            <p>
-                1. 아래쪽 막대를 움직여 공을 튕겨내세요.<br>
-                2. 공으로 위의 벽돌을 모두 깨면 성공입니다.<br>
-                3. 공을 바닥에 떨어뜨리면 게임이 끝납니다.
-            </p>
-            <button class="big-btn" onclick="toggleHelp()">닫기</button>
-        </div>
+        <button class="big-btn" onclick="startGame()">게임 시작</button>
+    </div>
 
-        <!-- 종료 화면 -->
-        <div id="gameOverScreen" class="hidden">
-            <h1 id="gameOverTitle">게임 종료</h1>
-            <p id="gameOverMessage">점수: 0</p>
-            <button class="big-btn" onclick="resetGame()">다시 하기</button>
-        </div>
+    <!-- 일시정지 화면 -->
+    <div id="pauseScreen" class="hidden">
+        <h1>일시 정지</h1>
+        <p>잠시 쉬는 중입니다.</p>
+        <button class="big-btn" onclick="togglePause()">다시 계속하기</button>
+    </div>
+
+    <!-- 도움말 화면 -->
+    <div id="helpScreen" class="hidden">
+        <h1>게임 방법</h1>
+        <p>
+            1. 아래쪽 막대를 움직여 공을 튕겨내세요.<br>
+            2. 공으로 위의 벽돌을 모두 깨면 성공입니다.<br>
+            3. 공을 바닥에 떨어뜨리면 생명이 줄어듭니다.<br>
+            4. 생명이 0이 되면 게임이 끝납니다.
+        </p>
+        <button class="big-btn" onclick="toggleHelp()">닫기</button>
+    </div>
+
+    <!-- 승리 화면 (새로 추가) -->
+    <div id="victoryScreen" class="hidden">
+        <h1 style="font-size: 80px;">🎉 참 잘하셨습니다! 🎉</h1>
+        <p style="font-size: 40px;">
+            <span id="victoryLevel">1</span>단계를 클리어했습니다!<br>
+            다음 단계로 넘어갑니다.
+        </p>
+        <button class="big-btn" onclick="continueToNextLevel()">계속하기</button>
+    </div>
+
+    <!-- 종료 화면 -->
+    <div id="gameOverScreen" class="hidden">
+        <h1 id="gameOverTitle">게임 종료</h1>
+        <p id="gameOverMessage">점수: 0</p>
+        <button class="big-btn" onclick="resetGame()">다시 하기</button>
     </div>
 
     <script>
@@ -197,7 +270,7 @@
         // 오디오 컨텍스트
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
-        let soundEnabled = false; // 기본 소리 꺼짐
+        let soundEnabled = false;
 
         function initAudio() {
             if (!audioCtx) {
@@ -209,12 +282,12 @@
         }
 
         function toggleSound() {
-            initAudio(); // 활성화 시도
+            initAudio();
             soundEnabled = !soundEnabled;
             const btn = document.getElementById('btn-sound');
             if (soundEnabled) {
                 btn.innerText = "소리: 켜짐";
-                btn.style.backgroundColor = "#4CAF50"; // 켜지면 녹색
+                btn.style.backgroundColor = "#4CAF50";
                 btn.style.borderColor = "#FFF";
             } else {
                 btn.innerText = "소리: 꺼짐";
@@ -233,7 +306,7 @@
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
 
-                if (type === 'hit') { // 벽 충돌
+                if (type === 'hit') {
                     oscillator.type = 'sine';
                     oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
                     oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
@@ -241,25 +314,25 @@
                     gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
                     oscillator.start();
                     oscillator.stop(audioCtx.currentTime + 0.1);
-                } else if (type === 'paddle') { // 패들 충돌
+                } else if (type === 'paddle') {
                     oscillator.type = 'square';
                     oscillator.frequency.setValueAtTime(200, audioCtx.currentTime);
                     gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
                     gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
                     oscillator.start();
                     oscillator.stop(audioCtx.currentTime + 0.1);
-                } else if (type === 'brick') { // 벽돌 깨짐
+                } else if (type === 'brick') {
                     oscillator.type = 'triangle';
                     oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
                     gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
                     gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
                     oscillator.start();
                     oscillator.stop(audioCtx.currentTime + 0.15);
-                } else if (type === 'win') { // 승리 (단순 효과)
+                } else if (type === 'win') {
                     oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime); // Do
-                    oscillator.frequency.linearRampToValueAtTime(659.25, audioCtx.currentTime + 0.2); // Mi
-                    oscillator.frequency.linearRampToValueAtTime(783.99, audioCtx.currentTime + 0.4); // Sol
+                    oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                    oscillator.frequency.linearRampToValueAtTime(659.25, audioCtx.currentTime + 0.2);
+                    oscillator.frequency.linearRampToValueAtTime(783.99, audioCtx.currentTime + 0.4);
                     gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
                     gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.8);
                     oscillator.start();
@@ -275,6 +348,49 @@
         let isPaused = false;
         let score = 0;
         let level = 1;
+        let lives = 2; // 라이프 시스템
+        let currentSpeedSetting = 2;
+        let selectedStartLevel = 1; // 시작 레벨 선택
+
+        // 레벨 저장/불러오기
+        function getSavedLevel() {
+            const saved = localStorage.getItem('maxLevel');
+            return saved ? parseInt(saved) : 1;
+        }
+
+        function saveLevel(lvl) {
+            const currentMax = getSavedLevel();
+            if (lvl > currentMax) {
+                localStorage.setItem('maxLevel', lvl.toString());
+                updateStartScreenLevelSelector();
+            }
+        }
+
+        function updateStartScreenLevelSelector() {
+            const savedLevel = getSavedLevel();
+            const savedBtn = document.getElementById('btn-level-saved');
+            if (savedLevel > 1) {
+                savedBtn.style.display = 'block';
+                savedBtn.innerText = savedLevel + '단계';
+            } else {
+                savedBtn.style.display = 'none';
+            }
+        }
+
+        function selectStartLevel(lvl) {
+            const btn1 = document.getElementById('btn-level-1');
+            const btnSaved = document.getElementById('btn-level-saved');
+
+            if (lvl === 1) {
+                selectedStartLevel = 1;
+                btn1.classList.add('selected');
+                btnSaved.classList.remove('selected');
+            } else {
+                selectedStartLevel = getSavedLevel();
+                btn1.classList.remove('selected');
+                btnSaved.classList.add('selected');
+            }
+        }
 
         // 패들
         const paddle = {
@@ -292,11 +408,27 @@
             x: canvas.width / 2,
             y: canvas.height - 50,
             radius: 12,
-            speed: 3,
-            dx: 3,
-            dy: -3,
+            speed: 2,
+            dx: 2,
+            dy: -2,
             color: '#FFD700'
         };
+
+        function setSpeed(mode) {
+            if (mode === 'slow') {
+                currentSpeedSetting = 2;
+                document.getElementById('btn-speed-slow').style.backgroundColor = "#4CAF50";
+                document.getElementById('btn-speed-slow').style.border = "3px solid #FFD700";
+                document.getElementById('btn-speed-normal').style.backgroundColor = "#555";
+                document.getElementById('btn-speed-normal').style.border = "2px solid #555";
+            } else {
+                currentSpeedSetting = 4;
+                document.getElementById('btn-speed-normal').style.backgroundColor = "#4CAF50";
+                document.getElementById('btn-speed-normal').style.border = "3px solid #FFD700";
+                document.getElementById('btn-speed-slow').style.backgroundColor = "#555";
+                document.getElementById('btn-speed-slow').style.border = "2px solid #555";
+            }
+        }
 
         // 블록
         const brickRowCount = 3;
@@ -445,18 +577,53 @@
 
                             if (allBroken) {
                                 playSound('win');
-                                alert("참 잘하셨습니다! 다음 단계로 넘어갑니다.");
-                                level++;
-                                document.getElementById('level').innerText = level;
-                                initBricks();
-                                ball.x = canvas.width / 2;
-                                ball.y = canvas.height - 50;
-                                ball.dy = -Math.abs(ball.speed) - (level * 0.5);
-                                ball.dx = ball.speed + (level * 0.5);
+                                showVictoryScreen();
                             }
                         }
                     }
                 }
+            }
+        }
+
+        function showVictoryScreen() {
+            isPaused = true;
+            document.getElementById('victoryLevel').innerText = level;
+            document.getElementById('victoryScreen').classList.remove('hidden');
+            saveLevel(level); // 레벨 저장
+        }
+
+        function continueToNextLevel() {
+            document.getElementById('victoryScreen').classList.add('hidden');
+            level++;
+            document.getElementById('level').innerText = level;
+            lives = 2; // 새 레벨 시작 시 라이프 초기화
+            document.getElementById('lives').innerText = lives;
+            initBricks();
+            resetBallAndPaddle();
+            ball.dy = -Math.abs(ball.speed) - (level * 0.5);
+            ball.dx = ball.speed + (level * 0.5);
+            isPaused = false;
+            draw();
+        }
+
+        function resetBallAndPaddle() {
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height - 50;
+            paddle.x = (canvas.width - paddle.width) / 2;
+        }
+
+        function loseLife() {
+            lives--;
+            document.getElementById('lives').innerText = lives;
+
+            if (lives > 0) {
+                // 라이프가 남아있으면 계속 플레이
+                resetBallAndPaddle();
+                ball.dx = ball.speed + (level * 0.5);
+                ball.dy = -Math.abs(ball.speed) - (level * 0.5);
+            } else {
+                // 라이프가 0이면 게임오버
+                gameOver();
             }
         }
 
@@ -485,7 +652,7 @@
                     playSound('paddle');
                 }
                 else if (ball.y + ball.dy > canvas.height - ball.radius) {
-                    gameOver();
+                    loseLife(); // 공을 놓쳤을 때 라이프 감소
                     return;
                 }
             }
@@ -503,44 +670,95 @@
             requestAnimationFrame(draw);
         }
 
-        function startGame() {
-            // initAudio(); // 여기서 켜지 않고 버튼으로만 제어하도록 변경 (사용자 요청: 기본 꺼짐)
-            // 사용자가 명시적으로 소리를 켰을 때만 initAudio() 호출됨 (toggleSound)
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('전체화면 오류:', err);
+                });
+                document.getElementById('btn-fullscreen').innerText = "전체화면 나가기";
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                    document.getElementById('btn-fullscreen').innerText = "전체화면";
+                }
+            }
+        }
 
+        // 전체화면 변경 감지
+        document.addEventListener('fullscreenchange', function () {
+            const btn = document.getElementById('btn-fullscreen');
+            if (document.fullscreenElement) {
+                btn.innerText = "전체화면 나가기";
+            } else {
+                btn.innerText = "전체화면";
+            }
+        });
+
+        function startGame() {
             document.getElementById('startScreen').classList.add('hidden');
             document.getElementById('gameOverScreen').classList.add('hidden');
             document.getElementById('pauseScreen').classList.add('hidden');
+
+            // 게임 플레이 중 커서 숨김
+            document.body.classList.add('playing');
             document.getElementById('helpScreen').classList.add('hidden');
+
+            // 게임 시작 시 자동 전체화면
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('자동 전체화면 오류:', err);
+                });
+            }
 
             gameRunning = true;
             isPaused = false;
             score = 0;
-            level = 1;
+            level = selectedStartLevel; // 선택한 레벨에서 시작
+            lives = 2;
             document.getElementById('score').innerText = score;
             document.getElementById('level').innerText = level;
+            document.getElementById('lives').innerText = lives;
 
-            ball.x = canvas.width / 2;
-            ball.y = canvas.height - 50;
-            ball.dx = ball.speed;
-            ball.dy = -ball.speed;
-            paddle.x = (canvas.width - paddle.width) / 2;
+            ball.speed = currentSpeedSetting;
+            ball.dx = ball.speed + (level * 0.5);
+            ball.dy = -Math.abs(ball.speed) - (level * 0.5);
 
+            resetBallAndPaddle();
             initBricks();
             draw();
         }
 
         function gameOver() {
+            document.body.classList.remove('playing');
             gameRunning = false;
             document.getElementById('gameOverScreen').classList.remove('hidden');
             document.getElementById('gameOverTitle').innerText = "게임 종료";
-            document.getElementById('gameOverMessage').innerText = "최종 점수: " + score;
+            document.getElementById('gameOverMessage').innerText = "최종 점수: " + score + "\n도달 단계: " + level;
         }
 
         function resetGame() {
-            startGame();
+            document.getElementById('startScreen').classList.remove('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            updateStartScreenLevelSelector();
         }
 
+        function quitGame() {
+            if (confirm('게임을 종료하시겠습니까?')) {
+                document.body.classList.remove('playing');
+                gameRunning = false;
+                isPaused = false;
+                document.getElementById('startScreen').classList.remove('hidden');
+                updateStartScreenLevelSelector();
+                // 전체화면 종료
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        // 초기화
         initBricks();
+        updateStartScreenLevelSelector();
 
     </script>
 </body>
