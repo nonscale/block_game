@@ -587,6 +587,7 @@
 
         function showVictoryScreen() {
             isPaused = true;
+            document.body.classList.remove('playing'); // 커서 보이기
             document.getElementById('victoryLevel').innerText = level;
             document.getElementById('victoryScreen').classList.remove('hidden');
             saveLevel(level); // 레벨 저장
@@ -594,6 +595,7 @@
 
         function continueToNextLevel() {
             document.getElementById('victoryScreen').classList.add('hidden');
+            document.body.classList.add('playing'); // 커서 숨기기 (게임 재개)
             level++;
             document.getElementById('level').innerText = level;
             lives = 2; // 새 레벨 시작 시 라이프 초기화
