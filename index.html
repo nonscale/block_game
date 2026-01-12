@@ -59,32 +59,7 @@
             align-items: center;
         }
 
-        /* 업데이트 알림 스타일 */
-        #update-notification {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: #4CAF50;
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-            display: none;
-            animation: slideIn 0.5s;
-        }
 
-        @keyframes slideIn {
-            from {
-                transform: translateY(100px);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
 
         .control-btn {
             background-color: #555;
@@ -116,7 +91,8 @@
         #gameOverScreen,
         #pauseScreen,
         #helpScreen,
-        #victoryScreen {
+        #victoryScreen,
+        #readyScreen {
             position: fixed;
             top: 0;
             left: 0;
@@ -231,13 +207,6 @@
         </div>
     </div>
 
-    <!-- 업데이트 알림 -->
-    <div id="update-notification">
-        <h3>새로운 업데이트가 있습니다!</h3>
-        <p>최신 버전으로 새로고침합니다.</p>
-        <button class="control-btn" onclick="location.reload(true)" style="margin-top:10px;">지금 업데이트</button>
-    </div>
-
     <!-- 시작 화면 -->
     <div id="startScreen">
         <h1>벽돌 깨기</h1>
@@ -280,7 +249,7 @@
         <button class="big-btn" onclick="toggleHelp()">닫기</button>
     </div>
 
-    <!-- 승리 화면 (새로 추가) -->
+    <!-- 승리 화면 -->
     <div id="victoryScreen" class="hidden">
         <h1 style="font-size: 80px;">🎉 참 잘하셨습니다! 🎉</h1>
         <p style="font-size: 40px;">
@@ -288,6 +257,13 @@
             다음 단계로 넘어갑니다.
         </p>
         <button class="big-btn" onclick="continueToNextLevel()">계속하기</button>
+    </div>
+
+    <!-- 준비 화면 (생명 잃었을 때) -->
+    <div id="readyScreen" class="hidden">
+        <h1 style="color: #FF5252;">앗! 놓쳤습니다</h1>
+        <p>공을 떨어뜨렸습니다.<br>준비가 되면 아래 버튼을 누르세요.</p>
+        <button class="big-btn" onclick="resumeGame()">이어하기</button>
     </div>
 
     <!-- 종료 화면 -->
@@ -653,14 +629,27 @@
             document.getElementById('lives').innerText = lives;
 
             if (lives > 0) {
-                // 라이프가 남아있으면 계속 플레이
+                // 라이프가 남아있으면 준비 화면 표시
+                // 게임 루프는 draw()에서 return으로 이미 멈춤
+                document.getElementById('readyScreen').classList.remove('hidden');
+                document.body.classList.remove('playing'); // 커서 보이기
+
                 resetBallAndPaddle();
-                ball.dx = ball.speed + (level * 0.5);
-                ball.dy = -Math.abs(ball.speed) - (level * 0.5);
             } else {
                 // 라이프가 0이면 게임오버
                 gameOver();
             }
+        }
+
+        function resumeGame() {
+            document.getElementById('readyScreen').classList.add('hidden');
+            document.body.classList.add('playing'); // 커서 숨기기
+
+            // 공 속도 및 방향 재설정
+            ball.dx = ball.speed + (level * 0.5);
+            ball.dy = -Math.abs(ball.speed) - (level * 0.5);
+
+            draw(); // 게임 루프 재시작
         }
 
         function draw() {
@@ -734,6 +723,7 @@
             document.getElementById('startScreen').classList.add('hidden');
             document.getElementById('gameOverScreen').classList.add('hidden');
             document.getElementById('pauseScreen').classList.add('hidden');
+            document.getElementById('readyScreen').classList.add('hidden'); // 혹시 모를 초기화
 
             // 게임 플레이 중 커서 숨김
             document.body.classList.add('playing');
@@ -775,6 +765,7 @@
         function resetGame() {
             document.getElementById('startScreen').classList.remove('hidden');
             document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('readyScreen').classList.add('hidden');
             updateStartScreenLevelSelector();
         }
 
@@ -784,6 +775,7 @@
                 gameRunning = false;
                 isPaused = false;
                 document.getElementById('startScreen').classList.remove('hidden');
+                document.getElementById('readyScreen').classList.add('hidden');
                 updateStartScreenLevelSelector();
                 // 전체화면 종료
                 if (document.fullscreenElement) {
@@ -797,7 +789,7 @@
         updateStartScreenLevelSelector();
 
         // --- 자동 업데이트 시스템 ---
-        const CURRENT_VERSION = "1.1";
+        const CURRENT_VERSION = "1.2";
 
         async function checkUpdate() {
             try {
@@ -807,14 +799,9 @@
 
                 const data = await response.json();
                 if (data.version !== CURRENT_VERSION) {
-                    // 버전이 다르면 알림 표시
-                    const notification = document.getElementById('update-notification');
-                    notification.style.display = 'block';
-
-                    // 3초 후 자동 새로고침 (사용자가 버튼을 안 눌러도)
-                    setTimeout(() => {
-                        location.reload(true);
-                    }, 3000);
+                    // 버전이 다르면 즉시 새로고침 (저장된 데이터는 유지됨)
+                    console.log("새로운 버전 발견! 업데이트를 진행합니다.");
+                    location.reload(true);
                 }
             } catch (e) {
                 console.log("버전 확인 실패 (오프라인이거나 로컬 실행 중일 수 있음):", e);
