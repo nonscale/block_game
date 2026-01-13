@@ -21,11 +21,12 @@
             user-select: none;
         }
 
-        body.playing {
+        /* 게임 플레이 중에만 게임 컨테이너 내부 커서 숨김 */
+        body.playing #gameContainer {
             cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="transparent"/></svg>'), none !important;
         }
 
-        body.playing * {
+        body.playing #gameContainer * {
             cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="transparent"/></svg>'), none !important;
         }
 
@@ -789,7 +790,7 @@
         updateStartScreenLevelSelector();
 
         // --- 자동 업데이트 시스템 ---
-        const CURRENT_VERSION = "1.2";
+        const CURRENT_VERSION = "1.3";
 
         async function checkUpdate() {
             try {
